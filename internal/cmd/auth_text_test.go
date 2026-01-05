@@ -149,8 +149,8 @@ func TestAuthTokensExportImport_Text(t *testing.T) {
 		openSecretsStore = origOpen
 		ensureKeychainAccess = origKeychain
 	})
-	ensureKeychainAccess = func() error { return nil }
 
+	ensureKeychainAccess = func() error { return nil }
 	store := newMemSecretsStore()
 	openSecretsStore = func() (secrets.Store, error) { return store, nil }
 
