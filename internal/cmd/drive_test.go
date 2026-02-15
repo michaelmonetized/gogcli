@@ -23,6 +23,13 @@ func TestBuildDriveListQuery(t *testing.T) {
 			t.Fatalf("unexpected: %q", got)
 		}
 	})
+
+	t.Run("does not treat quoted 'trashed' as predicate", func(t *testing.T) {
+		got := buildDriveListQuery("abc", "name contains 'trashed'")
+		if got != "name contains 'trashed' and 'abc' in parents and trashed = false" {
+			t.Fatalf("unexpected: %q", got)
+		}
+	})
 }
 
 func TestBuildDriveSearchQuery(t *testing.T) {
@@ -34,6 +41,14 @@ func TestBuildDriveSearchQuery(t *testing.T) {
 	t.Run("passes through filter query", func(t *testing.T) {
 		got := buildDriveSearchQuery("mimeType = 'application/vnd.google-apps.document'")
 		want := "mimeType = 'application/vnd.google-apps.document' and trashed = false"
+		if got != want {
+			t.Fatalf("unexpected: %q", got)
+		}
+	})
+
+	t.Run("filter query containing quoted trashed still appends trashed=false", func(t *testing.T) {
+		got := buildDriveSearchQuery("name contains 'trashed'")
+		want := "name contains 'trashed' and trashed = false"
 		if got != want {
 			t.Fatalf("unexpected: %q", got)
 		}

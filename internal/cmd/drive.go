@@ -27,7 +27,9 @@ var (
 	driveSearchContainsPattern        = regexp.MustCompile(`(?i)\b(?:name|fullText)\b\s+contains\s+'`)
 	driveSearchMembershipPattern      = regexp.MustCompile(`(?i)'[^']+'\s+in\s+(?:parents|owners|writers|readers)`)
 	driveSearchHasPattern             = regexp.MustCompile(`(?i)\b(?:properties|appProperties)\b\s+has\s+\{`)
-	driveTrashedPattern               = regexp.MustCompile(`(?i)\btrashed\b`)
+	// Only treat as "already constrained" when the query contains a real trashed predicate,
+	// not just the word inside a quoted literal (e.g. "name contains 'trashed'").
+	driveTrashedPredicatePattern = regexp.MustCompile(`(?i)\btrashed\b\s*(?:=|!=)\s*(?:true|false)\b`)
 )
 
 const (
@@ -1024,7 +1026,7 @@ func looksLikeDriveFilterQuery(q string) bool {
 }
 
 func hasDriveTrashedPredicate(q string) bool {
-	return driveTrashedPattern.MatchString(q)
+	return driveTrashedPredicatePattern.MatchString(q)
 }
 
 func escapeDriveQueryString(s string) string {

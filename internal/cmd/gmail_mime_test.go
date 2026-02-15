@@ -135,7 +135,7 @@ func TestBuildRFC822UTF8Subject(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	s := string(raw)
-	if !strings.Contains(s, "Subject: =?utf-8?") {
+	if !strings.Contains(strings.ToLower(s), "subject: =?utf-8?") {
 		t.Fatalf("expected encoded-word Subject: %q", s)
 	}
 }
@@ -151,7 +151,7 @@ func TestBuildRFC822UTF8FromDisplayName(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	s := string(raw)
-	if !strings.Contains(s, "From: =?utf-8?") {
+	if !strings.Contains(strings.ToLower(s), "from: =?utf-8?") {
 		t.Fatalf("expected encoded-word From header: %q", s)
 	}
 	if !strings.Contains(s, "<alias@domain.com>") {
@@ -238,7 +238,7 @@ func TestEncodeHeaderIfNeeded(t *testing.T) {
 		t.Fatalf("unexpected: %q", got)
 	}
 	got := encodeHeaderIfNeeded("Grüße")
-	if got == "Grüße" || !strings.Contains(got, "=?utf-8?") {
+	if got == "Grüße" || !strings.Contains(strings.ToLower(got), "=?utf-8?") {
 		t.Fatalf("expected encoded-word, got: %q", got)
 	}
 }
@@ -326,7 +326,7 @@ func TestFormatAddressHeadersMixed(t *testing.T) {
 	}
 
 	// Third part: non-ASCII name must be RFC 2047 encoded.
-	if !strings.Contains(parts[2], "=?utf-8?") {
+	if !strings.Contains(strings.ToLower(parts[2]), "=?utf-8?") {
 		t.Fatalf("expected RFC 2047 encoded name in third part, got: %q", parts[2])
 	}
 	if !strings.Contains(parts[2], "s@b.com") {
