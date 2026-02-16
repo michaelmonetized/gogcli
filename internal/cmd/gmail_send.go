@@ -8,6 +8,7 @@ import (
 	"net/mail"
 	"os"
 	"strings"
+	"time"
 
 	"google.golang.org/api/gmail/v1"
 
@@ -34,6 +35,7 @@ type GmailSendCmd struct {
 	Track            bool     `name:"track" help:"Enable open tracking (requires tracking setup)"`
 	TrackSplit       bool     `name:"track-split" help:"Send tracked messages separately per recipient"`
 	Quote            bool     `name:"quote" help:"Include quoted original message in reply (requires --reply-to-message-id or --thread-id)"`
+	SendAt           string   `name:"send-at" help:"Schedule send time (RFC3339). Creates a draft since Gmail API lacks native scheduling."`
 }
 
 type sendBatch struct {
@@ -230,6 +232,71 @@ func (c *GmailSendCmd) Run(ctx context.Context, flags *RootFlags) error {
 	}
 
 	batches := buildSendBatches(toRecipients, ccRecipients, bccRecipients, c.Track, c.TrackSplit)
+
+	// Handle --send-at: create draft instead of sending immediately
+	if c.SendAt != "" {
+		sendAtTime, parseErr := time.Parse(time.RFC3339, c.SendAt)
+		if parseErr != nil {
+			return fmt.Errorf("invalid --send-at time (use RFC3339 format, e.g., 2026-02-18T14:08:00-05:00): %w", parseErr)
+		}
+
+		if sendAtTime.Before(time.Now()) {
+			return fmt.Errorf("--send-at time must be in the future")
+		}
+
+		// Build the message but create a draft instead of sending
+		var inReplyTo, references string
+		if replyInfo != nil {
+			inReplyTo = replyInfo.InReplyTo
+			references = replyInfo.References
+		}
+		raw, err := buildRFC822(mailOptions{
+			From:        fromAddr,
+			To:          batches[0].To,
+			Cc:          batches[0].Cc,
+			Bcc:         batches[0].Bcc,
+			ReplyTo:     c.ReplyTo,
+			Subject:     c.Subject,
+			Body:        body,
+			BodyHTML:    htmlBody,
+			InReplyTo:   inReplyTo,
+			References:  references,
+			Attachments: atts,
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("failed to build message: %w", err)
+		}
+
+		msg := &gmail.Message{
+			Raw: base64.RawURLEncoding.EncodeToString(raw),
+		}
+		if replyInfo != nil && replyInfo.ThreadID != "" {
+			msg.ThreadId = replyInfo.ThreadID
+		}
+
+		draft, draftErr := svc.Users.Drafts.Create("me", &gmail.Draft{Message: msg}).Do()
+		if draftErr != nil {
+			return fmt.Errorf("failed to create scheduled draft: %w", draftErr)
+		}
+
+		u.Out().Printf("Draft created for scheduled send at %s\n", sendAtTime.Format(time.RFC1123))
+		u.Out().Printf("Draft ID: %s\n", draft.Id)
+		u.Out().Printf("\n⚠️  Gmail API does not support native scheduled send.\n")
+		u.Out().Printf("To send at the scheduled time, use:\n")
+		u.Out().Printf("  gog gmail drafts send %s\n", draft.Id)
+		u.Out().Printf("\nOr automate with cron/task scheduler.\n")
+
+		if outfmt.IsJSON(ctx) {
+			return outfmt.WriteJSON(ctx, os.Stdout, map[string]any{
+				"draftId":     draft.Id,
+				"scheduledAt": c.SendAt,
+				"command":     fmt.Sprintf("gog gmail drafts send %s", draft.Id),
+			})
+		}
+
+		return nil
+	}
+
 	results, err := sendGmailBatches(ctx, svc, sendMessageOptions{
 		FromAddr:    fromAddr,
 		ReplyTo:     c.ReplyTo,
