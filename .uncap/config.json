@@ -1,0 +1,19 @@
+{
+  "repoId": "r17cmm6hh2zq259dfwm7vkyex187msmx",
+  "owner": "uncap_user",
+  "name": "gogcli",
+  "originType": "native",
+  "legacy": {
+    "hasGitHub": true,
+    "hasGit": true
+  },
+  "defaults": {
+    "file": "public",
+    "fragment": "public",
+    "issue": "public",
+    "pullRequest": "public",
+    "branch": "public",
+    "comment": "public"
+  },
+  "headSha": ""
+}
